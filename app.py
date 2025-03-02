@@ -33,14 +33,15 @@ def compute_anomaly_features(input_data, iso_forest, high_txn_threshold):
 
     # 🚀 Drop extra columns if they exist to match model training
     trained_features = iso_forest.feature_names_in_
-    df = df[trained_features]  
+    df = df[trained_features]  # Keep only trained features
+    
+    # 🔍 Predict anomalies using only the trained features
+    df["anomaly"] = iso_forest.predict(df)
+    df["anomaly"] = df["anomaly"].map({1: 0, -1: 1})  # Convert to binary (1 = anomaly)
+
 
     # ✅ Compute decision score FIRST (safe operation)
     df["decision_score"] = iso_forest.decision_function(df)
-
-    # 🔍 Predict anomalies (ensure only trained features are passed)
-    df["anomaly"] = iso_forest.predict(df[trained_features])
-    df["anomaly"] = df["anomaly"].map({1: 0, -1: 1})  # Convert to binary (1 = anomaly)
 
     # ✅ Business Rule-Based Anomaly Flagging
     df["business_rule_anomaly"] = 0  # Default normal
@@ -112,6 +113,7 @@ else:
 
         # Drop computed columns before prediction
         input_for_model = computed_data.drop(columns=['decision_score', 'anomaly', 'business_rule_anomaly'])
+        input_for_model = computed_data[["unique_procedures", "total_procedures_count", "total_counts", "age", "gender", "income"]]
 
         # Predict using the classification model
         prediction = model.predict(input_for_model)
