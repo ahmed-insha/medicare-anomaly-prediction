@@ -27,7 +27,7 @@ def login():
 # ---- FUNCTION TO COMPUTE ANOMALY FEATURES ----
 
 
-def compute_anomaly_features(input_data):
+def compute_anomaly_features(input_data, iso_forest, high_txn_threshold):
     # ✅ Keep only the 6 trained features
     df = pd.DataFrame(input_data, columns=["unique_procedures", "total_procedures_count", "total_counts", "age", "gender", "income"])
 
