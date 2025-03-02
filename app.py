@@ -26,18 +26,16 @@ def login():
 
 # ---- FUNCTION TO COMPUTE ANOMALY FEATURES ----
 def compute_anomaly_features(input_data, iso_forest, high_txn_threshold):
-    """Compute additional anomaly features before classification."""
-    # Convert input data to DataFrame
+    # ✅ Keep only the 6 trained features
     df = pd.DataFrame(input_data, columns=["unique_procedures", "total_procedures_count", "total_counts", "age", "gender", "income"])
-    
-    df = df[list(iso_forest.feature_names_in_)]
+    df = df[iso_forest.feature_names_in_]  # Ensures correct order
 
-    # Predict anomaly using Isolation Forest
-    df['anomaly'] = iso_forest.predict(df)
-    df['anomaly'] = df['anomaly'].map({1: 0, -1: 1})  # Convert to binary (1 = anomaly)
+    # ✅ Compute decision score FIRST (before adding new columns)
+    df["decision_score"] = iso_forest.decision_function(df)
 
-    # Compute decision score
-    df['decision_score'] = iso_forest.decision_function(df)
+    # 🔍 Predict anomalies
+    df["anomaly"] = iso_forest.predict(df)
+    df["anomaly"] = df["anomaly"].map({1: 0, -1: 1})  # Convert to binary (1 = anomaly)
 
     # Business Rule-Based Anomalies
     df['business_rule_anomaly'] = 0
@@ -46,6 +44,7 @@ def compute_anomaly_features(input_data, iso_forest, high_txn_threshold):
     df.loc[df['total_counts'] > high_txn_threshold, 'business_rule_anomaly'] = 1
 
     return df
+
 
 # ---- CHECK LOGIN STATUS ----
 if not st.session_state.authenticated:
