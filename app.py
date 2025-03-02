@@ -25,25 +25,48 @@ def login():
             st.error("❌ Invalid Username or Password")
 
 # ---- FUNCTION TO COMPUTE ANOMALY FEATURES ----
-def compute_anomaly_features(input_data, iso_forest, high_txn_threshold):
+
+
+def compute_anomaly_features(input_data):
     # ✅ Keep only the 6 trained features
     df = pd.DataFrame(input_data, columns=["unique_procedures", "total_procedures_count", "total_counts", "age", "gender", "income"])
-    df = df[iso_forest.feature_names_in_]  # Ensures correct order
 
-    # ✅ Compute decision score FIRST (before adding new columns)
+    # 🚀 Drop extra columns if they exist to match model training
+    trained_features = iso_forest.feature_names_in_
+    df = df[trained_features]  
+
+    # ✅ Compute decision score FIRST (safe operation)
     df["decision_score"] = iso_forest.decision_function(df)
 
-    # 🔍 Predict anomalies
-    df["anomaly"] = iso_forest.predict(df)
+    # 🔍 Predict anomalies (ensure only trained features are passed)
+    df["anomaly"] = iso_forest.predict(df[trained_features])
     df["anomaly"] = df["anomaly"].map({1: 0, -1: 1})  # Convert to binary (1 = anomaly)
 
-    # Business Rule-Based Anomalies
-    df['business_rule_anomaly'] = 0
-    df.loc[(df['age'] < 18) & (df['income'] > 0), 'business_rule_anomaly'] = 1
-    df.loc[df['unique_procedures'] > df['total_procedures_count'], 'business_rule_anomaly'] = 1
-    df.loc[df['total_counts'] > high_txn_threshold, 'business_rule_anomaly'] = 1
+    # ✅ Business Rule-Based Anomaly Flagging
+    df["business_rule_anomaly"] = 0  # Default normal
+
+    # Rule 1: Age 0-17 with income > 0 (not needed as dataset has 65+ but kept for generalization)
+    df.loc[(df["age"] < 18) & (df["income"] > 0), "business_rule_anomaly"] = 1
+
+    # Rule 2: Unique procedures > total procedures
+    df.loc[df["unique_procedures"] > df["total_procedures_count"], "business_rule_anomaly"] = 1
+
+    # Rule 3: Total transactions = 0 or extremely high
+    high_txn_threshold = df["total_counts"].quantile(0.995)
+    df.loc[(df["unique_procedures"] > df["total_procedures_count"] * 1.2), "business_rule_anomaly"] = 1  # Allow 20% buffer
+
+    # ✅ Combine Business Rules & Model Anomalies
+    decision_score_threshold = df["decision_score"].quantile(0.025)  # Bottom 2.5% only
+    df["final_anomaly"] = np.where(
+        (df["anomaly"] == 1) | 
+        ((df["business_rule_anomaly"] == 1) & (df["decision_score"] < decision_score_threshold)), 
+        1, 
+        0
+    )
 
     return df
+
+
 
 
 # ---- CHECK LOGIN STATUS ----
