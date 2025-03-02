@@ -29,6 +29,9 @@ def compute_anomaly_features(input_data, iso_forest, high_txn_threshold):
     """Compute additional anomaly features before classification."""
     # Convert input data to DataFrame
     df = pd.DataFrame(input_data, columns=["unique_procedures", "total_procedures_count", "total_counts", "age", "gender", "income"])
+
+    # ✅ Ensure only training features are used
+    df = df[["unique_procedures", "total_procedures_count", "total_counts", "age", "gender", "income"]]  # Drop any extra columns
     
     # Compute decision score
     df['decision_score'] = iso_forest.decision_function(df)
