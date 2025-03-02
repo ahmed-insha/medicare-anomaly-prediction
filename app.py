@@ -31,13 +31,13 @@ def compute_anomaly_features(input_data, iso_forest, high_txn_threshold):
     df = pd.DataFrame(input_data, columns=["unique_procedures", "total_procedures_count", "total_counts", "age", "gender", "income"])
     
     df = df[list(iso_forest.feature_names_in_)]
-    
-    # Compute decision score
-    df['decision_score'] = iso_forest.decision_function(df)
 
     # Predict anomaly using Isolation Forest
     df['anomaly'] = iso_forest.predict(df)
     df['anomaly'] = df['anomaly'].map({1: 0, -1: 1})  # Convert to binary (1 = anomaly)
+
+    # Compute decision score
+    df['decision_score'] = iso_forest.decision_function(df)
 
     # Business Rule-Based Anomalies
     df['business_rule_anomaly'] = 0
